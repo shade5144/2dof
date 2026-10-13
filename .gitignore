@@ -1,0 +1,6 @@
+bt_server/build
+bt_server/sdkconfig
+bt_server/sdkconfig.old
+bt_client/servo_reading_log
+bt_client/clt
+./TODO

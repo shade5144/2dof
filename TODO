@@ -1,0 +1,11 @@
+Meta:
+- Push to git after updating README with pics/videos
+
+Bugs:
+- Deal with horrible accuracy
+- I fixed the watchdog timer tripping up for CPU0(the bluetooth stack) by adjusting task priorities, and adc_oneshot_read tripping up by adding a delay. But I should probably reduce
+  the number of samples itself in order to get good responsiveness.
+- Handle "device or connection busy". Look into this more. The SIGINT handler kind of fixed this, but probably not enough?
+
+Features:
+- Display the arm position using Raylib
