@@ -53,7 +53,8 @@ The electronics shall be explained later, in more detail. This is what the setup
 
 ## Working
 1. Setting Servo Angles:
-<video src="./assets/set_angle.mp4" width="100%" controls></video>
+
+https://github.com/user-attachments/assets/f5839d24-be0e-44d2-81b0-e9b985a42f51
 
 ## Circuit Schematic
 TODO
