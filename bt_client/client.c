@@ -29,6 +29,12 @@ void int_handler(int signum)
 {
     printf("Handling SIGINT...\n");
     fclose(servo_log);
+   
+    struct linger sl;
+    sl.l_onoff = 1; 
+    sl.l_linger = 0;
+    setsockopt(server, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl));
+
     close(server);
 
     _exit(0);
