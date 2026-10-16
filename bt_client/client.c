@@ -14,7 +14,7 @@
 
 #include "raylib.h"
 
-static const int NUM_SAMPLES = 480;
+static const int NUM_SAMPLES = 96;
 
 // Server socket
 static int server;
@@ -79,13 +79,15 @@ void *stream_servo_position(void *arg)
         }
         */
 
+        int batch_size = NUM_SAMPLES / 24;
+
         for(int i = 0; i < 24; i++)
         {
             uint16_t avg = 0;
 
-            for(int j = 0; j < 20; j++)
+            for(int j = 0; j < batch_size; j++)
             {
-                avg += servo_readings[i * 20 + j];
+                avg += servo_readings[i * batch_size + j];
             }
 
             if(avg == 0)
@@ -94,7 +96,7 @@ void *stream_servo_position(void *arg)
                 // fprintf(servo_log, "INTERRUPT RAISED!!!\n");
             }
 
-            samples[samp_top++] = avg / 20;
+            samples[samp_top++] = avg / batch_size;
         }
 
         for(int i = 0; i < 12; i++)
@@ -119,7 +121,7 @@ void *stream_servo_position(void *arg)
 
 void *interactive_client(void *arg)
 {
-    printf("0 -> Exit Client; 1 -> Set servo angles; 2 -> Set end-effector position(TODO)\n");
+    printf("0 -> Exit Client; 1 -> Set servo angles; 2 -> Set end-effector position(TODO) 3 -> Calibrate servos\n");
 
     while(1)
     {
