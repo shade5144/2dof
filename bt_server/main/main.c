@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
@@ -31,10 +31,10 @@
 #define ADC_PIN1 ADC_CHANNEL_4
 #define ADC_PIN2 ADC_CHANNEL_6
 
-static const int NUM_SAMPLES = 480;
+static const int NUM_SAMPLES = 96;
 
 static bool block_transmission = false;
-static uint16_t data[480];
+static uint16_t data[120];
 
 // Extern variables for servo actuation via BT 
 extern int btman_servo_1_angle_write;
@@ -107,17 +107,9 @@ static void transmit_task(void *params)
                 data[i + (NUM_SAMPLES / 2)] = oneshot_read_voltage(adc_handle, ADC_PIN2, cali_chan1);
                 delay_counter++;
 
-                if(!delay_counter)
-                {
-                    vTaskDelay(pdMS_TO_TICKS(10));
-                }
-
-                delay_counter = (delay_counter + 1) & 0xf;
-                // ESP_LOGI(SPP_TAG, "Servo1: %d", data[i]);
-                // ESP_LOGI(SPP_TAG, "Servo2: %d", data[i]);
+                vTaskDelay(pdMS_TO_TICKS(10));
             }
 
-            // ESP_LOGI(SPP_TAG, "Sending data... %d", move_servo);
             bt_send_data((uint8_t *)data, sizeof(uint16_t) * NUM_SAMPLES);
             // ESP_LOGI(SPP_TAG, "Data sent...");
 
