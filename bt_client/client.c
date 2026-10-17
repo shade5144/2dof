@@ -14,6 +14,7 @@
 
 #include "raylib.h"
 
+
 static const int NUM_SAMPLES = 96;
 
 // Server socket
@@ -23,6 +24,87 @@ static int servo_moved = 0;
 
 // Temporary file to log servo reading data in
 static FILE *servo_log;
+
+#define FILL_TO_SEND(to_send, angle1, angle2) to_send[1]=angle1; to_send[2]=angle2;
+static int16_t to_send[4] = {0};
+
+// Indicates whether we are calibrating currently or not
+static bool cali_on = false;
+static bool cali_done = false;
+static bool cali_switch = true; // Set to false to trigger one-time setting of cali_on
+static int servo_cali1[8] = {0};
+static int servo_cali2[8] = {0};
+static int16_t cali_angle1 = 0;
+static int16_t cali_angle2 = 0;
+static int cali_index = 0;
+
+static void send_angles(int16_t angle1, int16_t angle2)
+{
+    if(cali_on)
+    {
+        cali_angle1 = angle1;
+        cali_angle2 = angle2;
+    }
+
+    FILL_TO_SEND(to_send, angle1, angle2);
+    printf("Sending data\n");
+    // printf("Sending data: %d %d\n", to_send[1], to_send[2]);
+
+    servo_moved = 0;
+    cali_done = false;
+   
+    if(write(server, to_send, sizeof(int16_t) * 3) == -1)
+    {
+        perror("calibrate_servos-write1");
+        return;
+    }
+
+    printf("Moving servos to: %d %d....\n", angle1, angle2);
+
+    while(!servo_moved)
+        ;
+    
+    printf("Servos moved!....\n");
+
+    if(!cali_switch)
+    {
+        cali_switch = true;
+        cali_on = true;
+    }
+
+    usleep(1000);
+
+    if(cali_on)
+    {
+        while(!cali_done)
+            ;
+    }
+
+    printf("Calibration done!....\n");
+}
+
+#define DO_CALI(angle1, angle2) servo_cali1[cali_index] = 0; servo_cali2[cali_index] = 0; send_angles(angle1, angle2); cali_index++;
+
+static void calibrate_servos()
+{
+    to_send[0] = 0x0101;
+
+    /*
+    for(int16_t i = -90; i <= 90; i++)
+    {
+        DO_CALI(i, i);
+    }
+    */
+    DO_CALI(-90, -90);
+    DO_CALI(-60, -60);
+    DO_CALI(-30, -30);
+    DO_CALI(0, 0);
+    DO_CALI(30, 30);
+    DO_CALI(60, 60);
+    DO_CALI(90, 90);
+
+    cali_index = 0;
+}
 
 // Interrupt handler for SIGINT
 void int_handler(int signum)
@@ -55,8 +137,14 @@ void *stream_servo_position(void *arg)
 
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
+    // Run calibration for a single iteration
+    bool cali_run = false;
+    bool cali_do = false;
+
     while(1)
     {
+        cali_run = false;
+
         int read_bytes = read(server, servo_readings, sizeof(uint16_t) * NUM_SAMPLES);
 
         if(read_bytes == -1)
@@ -93,16 +181,52 @@ void *stream_servo_position(void *arg)
             if(avg == 0)
             {
                 servo_moved = 1;
-                // fprintf(servo_log, "INTERRUPT RAISED!!!\n");
-            }
 
+                if(cali_on)
+                {
+                    cali_run = true;
+                }
+
+                // fprintf(servo_log, "INTERRUPT RAISED!!!\n");`
+                break;
+            }
+            
             samples[samp_top++] = avg / batch_size;
         }
 
+        if(cali_run)
+        {
+            cali_do = true;
+            usleep(1000); // Wait for servo position to be available via BT. Might not need this
+            continue;
+        }
+
+        // So that the zero values caused by the interrupt don't glitch out the position to be displayed
+        // if(servo_moved && !cali_done)
+        //     break;
+
         for(int i = 0; i < 12; i++)
         {
-            fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle(samples[i]), samples[i + 12], convert_voltage_to_angle(samples[i + 12]));
-        } 
+            int a1 = convert_voltage_to_angle(samples[i]);
+            int a2 = convert_voltage_to_angle(samples[i + 12]);
+
+            if(cali_on && cali_do)
+            {
+                servo_cali1[cali_index] += a1 - cali_angle1;
+                servo_cali2[cali_index] += a2 - cali_angle2;
+            }
+
+            fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], a1, samples[i + 12], a2);
+        }
+
+        if(cali_on && cali_do)
+        {
+            servo_cali1[cali_index] /= 12;
+            servo_cali2[cali_index] /= 12;
+
+            fprintf(servo_log, "Calibrating Servo1: %d Servo2: %d\n", convert_voltage_to_angle(servo_cali1[cali_index]), convert_voltage_to_angle(servo_cali2[cali_index]));
+            cali_done = true;
+        }
 
         clock_gettime(CLOCK_MONOTONIC, &current_time);
         double elapsed = (current_time.tv_sec - last_time.tv_sec) + 
@@ -111,6 +235,7 @@ void *stream_servo_position(void *arg)
         // fprintf(servo_log, "servo_read: Iteration %d took: %.6f seconds\n", num, elapsed);
         num++;
 
+        cali_do = false;
         last_time = current_time;
         fflush(servo_log);
     }
@@ -145,25 +270,25 @@ void *interactive_client(void *arg)
             case 1:
             {
                 int temp;
-                int16_t to_send[4];
+                int16_t to_send_angles[4];
                 
                 printf("Enter position for Servo1: ");
                 scanf("%d", &temp);
-                to_send[1] = (int16_t)(temp);
+                to_send_angles[1] = (int16_t)(temp);
 
                 printf("Enter position for Servo2: ");
                 scanf("%d", &temp);
-                to_send[2] = (int16_t)(temp);
+                to_send_angles[2] = (int16_t)(temp);
 
                 // opcode. specified twice as this is 16-bit data
-                to_send[0] = 0x0101;
+                to_send_angles[0] = 0x0101;
 
                 printf("Sending data\n");
                 // printf("Sending data: %d %d\n", to_send[1], to_send[2]);
 
                 servo_moved = 0;
                
-                if(write(server, to_send, sizeof(int16_t) * 3) == -1)
+                if(write(server, to_send_angles, sizeof(int16_t) * 3) == -1)
                 {
                     perror("interactive_client-write1");
                     break;
@@ -181,6 +306,13 @@ void *interactive_client(void *arg)
             case 2:
             {
                 // TODO
+                break;
+            }
+            case 3:
+            {
+                cali_switch = false;
+                calibrate_servos();
+                cali_on = false;
                 break;
             }
             default:
