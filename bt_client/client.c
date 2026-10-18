@@ -122,15 +122,22 @@ void int_handler(int signum)
     _exit(0);
 }
 
-static int convert_voltage_to_angle(int x)
+static int convert_voltage_to_angle_servo1(int x)
 {
-    return ((x - 142) * (90 - (-90)) / (3124-142)) + (-90);
+    return ((x - 384) * (90 - (-90)) / (3094-384)) + (-90);
+}
+
+static int convert_voltage_to_angle_servo2(int x)
+{
+    return ((x - 292) * (90 - (-90)) / (2924-292)) + (-90);
 }
 
 void *stream_servo_position(void *arg)
 {
+    float avg1 = 0;
+    float avg2 = 0;
     struct timespec last_time, current_time;
-    int num = 0;
+    int num = 1;
     uint16_t servo_readings[512];
     uint16_t samples[32];
     int samp_top = 0;
@@ -205,10 +212,20 @@ void *stream_servo_position(void *arg)
         // if(servo_moved && !cali_done)
         //     break;
 
+        unsigned long cur_num = NUM_SAMPLES * num;
+
+        int a1 = 0;
+        int a2 = 0;
+        avg1 = 0.0f;
+        avg2 = 0.0f;
+
         for(int i = 0; i < 12; i++)
         {
-            int a1 = convert_voltage_to_angle(samples[i]);
-            int a2 = convert_voltage_to_angle(samples[i + 12]);
+            int a1 = convert_voltage_to_angle_servo1(samples[i]);
+            int a2 = convert_voltage_to_angle_servo2(samples[i + 12]);
+
+            avg1 += (float)samples[i];
+            avg2 += (float)samples[i + 12];
 
             if(cali_on && cali_do)
             {
@@ -216,15 +233,19 @@ void *stream_servo_position(void *arg)
                 servo_cali2[cali_index] += a2 - cali_angle2;
             }
 
-            fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], a1, samples[i + 12], a2);
+            fprintf(servo_log, "Servo1: (%u %d) Servo2: (%u %d)\n", samples[i], a1, samples[i + 12], a2);
         }
+
+        avg1 /= 12;
+        avg2 /= 12;
+        fprintf(servo_log, "Cur avg->S1: (%f %d) S2: (%f %d)\n", avg1, convert_voltage_to_angle_servo1((int)avg1), avg2, convert_voltage_to_angle_servo2((int)avg2));
 
         if(cali_on && cali_do)
         {
             servo_cali1[cali_index] /= 12;
             servo_cali2[cali_index] /= 12;
 
-            fprintf(servo_log, "Calibrating Servo1: %d Servo2: %d\n", convert_voltage_to_angle(servo_cali1[cali_index]), convert_voltage_to_angle(servo_cali2[cali_index]));
+            fprintf(servo_log, "Calibrating Servo1: %d Servo2: %d\n", convert_voltage_to_angle_servo1(servo_cali1[cali_index]), convert_voltage_to_angle_servo2(servo_cali2[cali_index]));
             cali_done = true;
         }
 
@@ -271,13 +292,37 @@ void *interactive_client(void *arg)
             {
                 int temp;
                 int16_t to_send_angles[4];
-                
-                printf("Enter position for Servo1: ");
-                scanf("%d", &temp);
+               
+                while(1)
+                {
+                    printf("Enter position for Servo1: ");
+                    scanf("%d", &temp);
+
+                    if(temp > 90 || temp < -90)
+                    {
+                        printf("Out of range, enter value within -90 and +90");
+                        continue;
+                    }
+
+                    break;
+                }
+
                 to_send_angles[1] = (int16_t)(temp);
 
-                printf("Enter position for Servo2: ");
-                scanf("%d", &temp);
+                while(1)
+                {
+                    printf("Enter position for Servo2: ");
+                    scanf("%d", &temp);
+
+                    if(temp > 90 || temp < -90)
+                    {
+                        printf("Out of range, enter value within -90 and +90");
+                        continue;
+                    }
+
+                    break;
+                }
+
                 to_send_angles[2] = (int16_t)(temp);
 
                 // opcode. specified twice as this is 16-bit data
