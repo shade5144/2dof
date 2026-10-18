@@ -51,10 +51,8 @@ static void move_servo_task(void *params)
 
     ESP_LOGI(SPP_TAG, "Moving servo 1..");
     smooth_move_motor(0, btman_servo_1_angle_write);  
-    vTaskDelay(pdMS_TO_TICKS(100));
     ESP_LOGI(SPP_TAG, "Moving servo 2..");
     smooth_move_motor(1, btman_servo_2_angle_write);
-    vTaskDelay(pdMS_TO_TICKS(100));
 
     block_transmission = true;
 
@@ -80,10 +78,10 @@ static void transmit_task(void *params)
             if(move_servo)
             {
                 ESP_LOGI(SPP_TAG, "Preparing to move the servos....");
-                xTaskCreate(move_servo_task, "MoveServoTask", 4 * 1024, NULL, configMAX_PRIORITIES - 12, NULL);
+                xTaskCreate(move_servo_task, "MoveServoTask", 4 * 1024, NULL, configMAX_PRIORITIES - 14, NULL);
 
                 // Wait 
-                vTaskDelay(pdMS_TO_TICKS(100));
+                // vTaskDelay(pdMS_TO_TICKS(100));
             }
 
             for(int i = 0; i < NUM_SAMPLES / 2; i++)
