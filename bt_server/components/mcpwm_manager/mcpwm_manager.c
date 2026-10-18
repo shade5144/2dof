@@ -55,15 +55,6 @@ static inline uint32_t example_angle_to_compare(int angle, struct ServoDrive *se
     int min_degree = servo->min_degree;
     int max_degree = servo->max_degree;
 
-    ESP_LOGI(TAG, "min_degree: %d max_degree: %d angle: %d", min_degree, max_degree, angle);
-    ESP_LOGI(TAG, "angle - min_degree: %d", angle - min_degree);
-    ESP_LOGI(TAG, "max_pw - min_pw: %d", servo->max_pw - servo->min_pw);
-    ESP_LOGI(TAG, "(angle - min_degree) * (max_pw - min_pw): %d", (angle - min_degree) * (servo->max_pw - servo->min_pw));
-    ESP_LOGI(TAG, "max_degree - min_degree: %d", max_degree - min_degree);
-    ESP_LOGI(TAG, "(angle - min_degree) * (max_pw - min_pw) / (max_degree - min_degree): %d", (angle - min_degree) * (servo->max_pw - servo->min_pw)/ (max_degree - min_degree));
-    ESP_LOGI(TAG, "min_pw: %u", servo->min_pw);
-    ESP_LOGI(TAG, "Actual PW: %u", (angle - min_degree) * (servo->max_pw - servo->min_pw)/ (max_degree - min_degree) + servo->min_pw);
-
     return (uint32_t)((angle - min_degree) * (servo->max_pw - servo->min_pw) / (max_degree - min_degree) + servo->min_pw);
 }
 
@@ -73,33 +64,9 @@ void smooth_move_motor(int servo_num, int to_move)
     struct ServoPos *servo_pos = &servo_position[servo_num];
     mcpwm_cmpr_handle_t comparator = servo->cmp_handle;
 
-    ESP_LOGI(TAG, "Signal has PW: %d", example_angle_to_compare(to_move, servo));
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(to_move, servo)));
 
     return;
-
-    /*
-    int angle = servo_pos->angle;
-    int step = servo_pos->step;
-    mcpwm_cmpr_handle_t comparator = servo->cmp_handle;
-
-    if (to_move < angle)
-    {
-        step *= -1;
-    }
-
-    // Should be fine considering the unit step size currently being employed
-    while ( (step > 0 && angle < to_move) || (step < 0 && angle > to_move) )
-    {
-        ESP_LOGI(TAG, "Angle of rotation of servo: %d", to_move);
-        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(angle, servo)));
-
-        angle += step;
-        vTaskDelay(pdMS_TO_TICKS(5));
-    }
-
-    servo_pos->angle = angle;
-    */
 }
 
 void mcpwm_init()
