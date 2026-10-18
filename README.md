@@ -60,6 +60,7 @@ https://github.com/user-attachments/assets/f5839d24-be0e-44d2-81b0-e9b985a42f51
 TODO
 
 ## Development Notes
+### First Release
 I ran into a couple of issues in the first release, which I have touched upon here.
 - Measuring the servo's position via a wire to the internal potentiometer appeared to be fine in isolation, but when I had to apply voltage to also MOVE the servos while it was being
   measured, this caused the servos to start malfunctioning. Likely this is because the ESP32's ADC does not tolerate the impedance of the internal pot, leading to current draw. My 
@@ -71,6 +72,13 @@ I ran into a couple of issues in the first release, which I have touched upon he
 - I initially had a more complicated design for the arm with trusses and stuff, but I discarded this design as my scope changed(as mentioned in the `Motivation` section).
 - I looked at a few algorithms for filtering the noisy ADC(exponential average, a median filter) for the servo positions, as it was really quite variable but settled on a simple mean
   due to the complexity of the other approaches.
+### Working towards the Second Release
+- I wanted to get the displaying arm position stuff done for this, but noticed that the angles shown and the actual angle the arm was at were really disimilar(off by 5-10 degrees).
+  Turns out, the upper and lower bounds I set for the `convert_voltage_to_angle` function in the client are not the true ones(each servo has a different upper and lower bound). So I
+  added 2 functions that map the voltage from a different range to [-90, 90] degrees. However, in the process of discovering this, I also tried implementing a solution where the servo
+  would move to different, pre-determined angles and then create an inverse mapping(set angle to actual angle) which will be used in the future for offsetting servo readings. I did not
+  go through completely with this implementation(due to complexity and how well this other solution has worked), but I have left it in the `client-callibration` branch for documenting
+  it.
 
 ## References
 - The esp-idf documentation and the various examples included in the development framework were of immense help.

@@ -40,9 +40,14 @@ void int_handler(int signum)
     _exit(0);
 }
 
-static int convert_voltage_to_angle(int x)
+static int convert_voltage_to_angle_servo1(int x)
 {
-    return ((x - 142) * (90 - (-90)) / (3124-142)) + (-90);
+    return ((x - 384) * (90 - (-90)) / (3094-384)) + (-90);
+}
+
+static int convert_voltage_to_angle_servo2(int x)
+{
+    return ((x - 292) * (90 - (-90)) / (2924-292)) + (-90);
 }
 
 void *stream_servo_position(void *arg)
@@ -87,7 +92,16 @@ void *stream_servo_position(void *arg)
 
             for(int j = 0; j < batch_size; j++)
             {
-                avg += servo_readings[i * batch_size + j];
+                int16_t reading = servo_readings[i * batch_size + j];
+
+                // Interrupt
+                if(!reading)
+                {
+                    servo_moved = 1;
+                    continue;
+                }
+
+                avg += reading;
             }
 
             if(avg == 0)
@@ -99,10 +113,24 @@ void *stream_servo_position(void *arg)
             samples[samp_top++] = avg / batch_size;
         }
 
+        int16_t avg1 = 0;
+        int16_t avg2 = 0;
+
         for(int i = 0; i < 12; i++)
         {
-            fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle(samples[i]), samples[i + 12], convert_voltage_to_angle(samples[i + 12]));
+            int16_t a1 =  convert_voltage_to_angle_servo1(samples[i]);
+            int16_t a2 =  convert_voltage_to_angle_servo2(samples[i + 12]);
+
+            avg1 += a1;
+            avg2 += a2;
+
+            fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle_servo1(samples[i]), samples[i + 12], convert_voltage_to_angle_servo2(samples[i + 12]));
         } 
+
+        avg1 /= 12;
+        avg2 /= 12;
+
+        fprintf(servo_log, "Current average -> (%d %d)\n", avg1, avg2);
 
         clock_gettime(CLOCK_MONOTONIC, &current_time);
         double elapsed = (current_time.tv_sec - last_time.tv_sec) + 
