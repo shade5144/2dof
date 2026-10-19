@@ -51,10 +51,10 @@ The electronics shall be explained later, in more detail. This is what the setup
 
 ![Overall Setup](./assets/arm4.jpg)
 
-## Working
+## Videos of the working arm
 1. Setting Servo Angles:
 
-https://github.com/user-attachments/assets/f5839d24-be0e-44d2-81b0-e9b985a42f51
+2. Arm movement with position shown in the client:
 
 ## Circuit Schematic
 TODO
@@ -79,7 +79,11 @@ I ran into a couple of issues in the first release, which I have touched upon he
   would move to different, pre-determined angles and then create an inverse mapping(set angle to actual angle) which will be used in the future for offsetting servo readings. I did not
   go through completely with this implementation(due to complexity and how well this other solution has worked), but I have left it in the `client-callibration` branch for documenting
   it.
+### Second Release
+- Not much to say here, as the graphics stuff is pretty straight forward. Just had to mess around with the trigonometry in the client to get a one-one correspondence with the physical 
+  arm.
 
 ## References
 - The esp-idf documentation and the various examples included in the development framework were of immense help.
+- Random reddit/stack exchange posts whose links I have forgotten :(
 - The tutorials on the bluez project by MIT

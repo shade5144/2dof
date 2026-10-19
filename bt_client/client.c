@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <time.h>
+#include <math.h>
 
 #include <sys/socket.h>
 #include <bluetooth/bluetooth.h>
@@ -14,7 +15,16 @@
 
 #include "raylib.h"
 
+#define PI_RAD 3.14159265358979323846
+
+static bool log_on = false;
+
+#define SERVO_LOG(code) if(log_on) { code; }
+
 static const int NUM_SAMPLES = 96;
+
+static int16_t angle1, angle2;
+static int link1, link2;
 
 // Server socket
 static int server;
@@ -23,6 +33,9 @@ static int servo_moved = 0;
 
 // Temporary file to log servo reading data in
 static FILE *servo_log;
+
+// Flag to indicate raylib has initialized, to make sure the interactive client's prompt is properly visible
+static bool raylib_started = false;
 
 // Interrupt handler for SIGINT
 void int_handler(int signum)
@@ -124,19 +137,20 @@ void *stream_servo_position(void *arg)
             avg1 += a1;
             avg2 += a2;
 
-            fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle_servo1(samples[i]), samples[i + 12], convert_voltage_to_angle_servo2(samples[i + 12]));
+            SERVO_LOG(
+                    fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle_servo1(samples[i]),  
+                                                                                samples[i + 12], convert_voltage_to_angle_servo2(samples[i + 12]))
+            );
         } 
 
         avg1 /= 12;
         avg2 /= 12;
 
-        fprintf(servo_log, "Current average -> (%d %d)\n", avg1, avg2);
+        SERVO_LOG(fprintf(servo_log, "Current average -> (%d %d)\n", angle1, angle2));
 
-        clock_gettime(CLOCK_MONOTONIC, &current_time);
-        double elapsed = (current_time.tv_sec - last_time.tv_sec) + 
-                         (current_time.tv_nsec - last_time.tv_nsec) / 1000000000.0;
-    
-        // fprintf(servo_log, "servo_read: Iteration %d took: %.6f seconds\n", num, elapsed);
+        angle1 = avg1;
+        angle2 = avg2;
+
         num++;
 
         last_time = current_time;
@@ -149,7 +163,11 @@ void *stream_servo_position(void *arg)
 
 void *interactive_client(void *arg)
 {
-    printf("0 -> Exit Client; 1 -> Set servo angles; 2 -> Set end-effector position(TODO) 3 -> Calibrate servos\n");
+    while(!raylib_started)
+        ;
+
+    printf("\n\n===================================================================================================\n");
+    printf("0 -> Exit Client; 1 -> Set servo angles; 2 -> Set end-effector position(TODO) 3 -> Print current angles\n");
 
     while(1)
     {
@@ -211,6 +229,11 @@ void *interactive_client(void *arg)
                 // TODO
                 break;
             }
+            case 3:
+            {
+                printf("Angle1: %d Angle2: %d\n", angle1, angle2);
+                break;
+            }
             default:
             {
                 printf("Invalid option, try again!\n");
@@ -223,11 +246,80 @@ void *interactive_client(void *arg)
 
 void *render_arm(void *arg)
 {
+    const int screenWidth = 1000;
+    const int screenHeight = 525;
+
+    InitWindow(screenWidth, screenHeight, "2dof Client");
+
+    SetTargetFPS(60);             
+
+    Vector2 fixed_point_coord = {screenWidth / 3, screenHeight / 2};
+    Vector2 elbow_joint_coord = {screenWidth / 3 + link1, screenHeight / 2};
+    Vector2 end_effector_coord = {screenWidth / 3 + link1 + link2, screenHeight / 2};
+
+    // float test_angle1 = 00.0f;
+    // float test_angle2 = 00.0f;
+
+    raylib_started = true;
+    while (!WindowShouldClose())  
+    {
+        /*
+        if (IsKeyDown(KEY_RIGHT)) test_angle1 += 1.0f;
+        if (IsKeyDown(KEY_LEFT)) test_angle1 -= 1.0f;
+        if (IsKeyDown(KEY_UP)) test_angle2 -= 1.0f;
+        if (IsKeyDown(KEY_DOWN)) test_angle2 += 1.0f; 
+        */
+
+        // Update
+        elbow_joint_coord.x = fixed_point_coord.x + link1 * cosf((float)angle2 * PI_RAD / (float)180);
+        elbow_joint_coord.y = fixed_point_coord.y - link1 * sinf((float)angle2 * PI_RAD / (float)180);
+
+        float abs_angle = (float)angle2 + (float)angle1;
+
+        end_effector_coord.x = elbow_joint_coord.x + link2 * cosf(abs_angle * PI_RAD / (float)180);
+        end_effector_coord.y = elbow_joint_coord.y - link2 * sinf(abs_angle * PI_RAD / (float)180);
+
+        // Draw
+        BeginDrawing();
+
+        ClearBackground(RAYWHITE);
+
+        // Links
+        DrawLineEx(fixed_point_coord, elbow_joint_coord, 10.0f, YELLOW);
+        DrawLineEx(elbow_joint_coord, end_effector_coord, 10.0f, YELLOW);
+
+        // Joints
+        DrawCircle(fixed_point_coord.x, fixed_point_coord.y , 10, RED);
+        DrawCircle(elbow_joint_coord.x, elbow_joint_coord.y, 10, RED);
+        DrawCircle(end_effector_coord.x, end_effector_coord.y, 10, RED);
+
+
+        EndDrawing();
+    }
+
+    CloseWindow(); 
+
+    return NULL;
 }
 
 
-int main()
+int main(int argc, char **argv)
 {
+    // Rudimentary CLI
+    if(argc < 4)
+    {
+        printf("USAGE: ./clt logging(y/n) l1_length l2_length\n");
+        _exit(0);
+    }
+
+    if(argv[1][0] == 'y')
+    {
+        log_on = true;
+    }
+
+    link1 = atoi(argv[2]);
+    link2 = atoi(argv[3]);
+
     // Handle SIGINT by closing the socket to ensure that stale connections are removed
     struct sigaction new_action, old_action;
 
@@ -264,12 +356,15 @@ int main()
         return 0;
     }
 
-    servo_log = fopen("servo_reading_log", "w");
-
-    if(!servo_log)
+    if(log_on)
     {
-        perror("main-fopen1");
-        return 0;
+        servo_log = fopen("servo_reading_log", "w");
+
+        if(!servo_log)
+        {
+            perror("main-fopen1");
+            return 0;
+        }
     }
 
     // Stream servo position, render the arm and send commands to the ESP32
@@ -287,7 +382,13 @@ int main()
         return 0;
     }
 
-    for(int i = 0; i < 2; i++)
+    if(pthread_create(&threads[2], NULL, render_arm, NULL))
+    {
+        perror("main-pthread_create3");
+        return 0;
+    }
+
+    for(int i = 0; i < 3; i++)
     {
         if(pthread_join(threads[i], NULL))
         {
@@ -295,7 +396,6 @@ int main()
         }
     }
     // This should be started only after stream_servo_data has given us actual info
-    // pthread_create(&threads[2], NULL, render_arm, NULL);
 
     return 0;
 }
