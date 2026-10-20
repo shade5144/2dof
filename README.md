@@ -37,9 +37,10 @@ idf.py -p [YOUR_ESP_PORT] flash monitor
 
 ## Progress
 - You can connect to the ESP32 via a Linux system and send commands to set servo angles
+- You can view the arm's position on the client in real-time
+- You can now calculate servo angles given end-effector position. 
 
-- Have to display the arm's position on the client
-- Have to implement inverse kinematics
+- Have to implement bounds checking for IK
 
 ## Setup
 The electronics shall be explained later, in more detail. This is what the setup LOOKS like though
@@ -54,7 +55,11 @@ The electronics shall be explained later, in more detail. This is what the setup
 ## Videos of the working arm
 1. Setting Servo Angles:
 
+https://github.com/user-attachments/assets/f188709f-138d-4c69-847a-8c98933a1f3a
+
 2. Arm movement with position shown in the client:
+
+https://github.com/user-attachments/assets/7eef4c33-fd19-4130-acd1-c42e1eefb253
 
 ## Circuit Schematic
 TODO
@@ -84,6 +89,7 @@ I ran into a couple of issues in the first release, which I have touched upon he
   arm.
 
 ## References
+- Inverse kinematics equations from robot-academy's article on 2dof arms
 - The esp-idf documentation and the various examples included in the development framework were of immense help.
 - Random reddit/stack exchange posts whose links I have forgotten :(
 - The tutorials on the bluez project by MIT
