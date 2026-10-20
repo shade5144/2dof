@@ -48,7 +48,11 @@ static Vector2 user_end_effector_posn = {0, 0};
 void int_handler(int signum)
 {
     printf("Handling SIGINT...\n");
-    fclose(servo_log);
+
+    if(servo_log)
+    {
+        fclose(servo_log);
+    }
    
     struct linger sl;
     sl.l_onoff = 1; 
