@@ -17,6 +17,7 @@
 
 #define PI_RAD 3.14159265358979323846
 
+static bool vtwin = false;
 static bool log_on = false;
 
 #define SERVO_LOG(code) if(log_on) { code; }
@@ -247,19 +248,7 @@ void *interactive_client(void *arg)
                 float l1 = (float)link1;
                 float l2 = (float)link2;
 
-                printf("x^2 + y^2: %lf\n", x*x + y*y);
-                printf("-link1^2 - link2^2: %lf\n", -l1*l1 - l2*l2);
-                printf("x^2 + y^2 - link1^2 - link2^2: %lf\n", x*x + y*y - l1*l1 - l2*l2);
-                printf("2*link1*link2: %lf\n", 2*l1*l2);
-                printf("(x^2 + y^2 - link1^2 - link2^2) / 2*link1*link2: %lf\n", (x*x + y*y - l1*l1- l2*l2) / (2*l1*l2));
-
-                // Angle1 is q2
-                float c2 = (x*x + y*y - l1*l1 - l2*l2) / (2*l1*l2);
-                float s2 = sqrtf(1 - c2*c2);
-
-                float q2 = atan2f(s2, c2);
-
-                // Angle2 is q1
+                float q2 = acosf((x*x + y*y - l1*l1 - l2*l2) / (2*l1*l2));
                 float q1 = atan2f(y, x) - atan2f((l2 * sinf(q2)), l1 + l2 * cos(q2));
 
                 q2 = q2 * (float)180 / PI_RAD;
@@ -343,13 +332,16 @@ void *render_arm(void *arg)
         end_effector_coord.x = elbow_joint_coord.x + link2 * cosf(abs_angle * PI_RAD / (float)180);
         end_effector_coord.y = elbow_joint_coord.y - link2 * sinf(abs_angle * PI_RAD / (float)180);
 
-        velbow_joint_coord.x = fixed_point_coord.x + link1 * cosf((float)ik_angle2 * PI_RAD / (float)180);
-        velbow_joint_coord.y = fixed_point_coord.y - link1 * sinf((float)ik_angle2 * PI_RAD / (float)180);
+        if(vtwin)
+        {
+            velbow_joint_coord.x = fixed_point_coord.x + link1 * cosf((float)ik_angle2 * PI_RAD / (float)180);
+            velbow_joint_coord.y = fixed_point_coord.y - link1 * sinf((float)ik_angle2 * PI_RAD / (float)180);
 
-        float vabs_angle = (float)ik_angle2 + (float)ik_angle1;
+            float vabs_angle = (float)ik_angle2 + (float)ik_angle1;
 
-        vend_effector_coord.x = velbow_joint_coord.x + link2 * cosf(vabs_angle * PI_RAD / (float)180);
-        vend_effector_coord.y = velbow_joint_coord.y - link2 * sinf(vabs_angle * PI_RAD / (float)180);
+            vend_effector_coord.x = velbow_joint_coord.x + link2 * cosf(vabs_angle * PI_RAD / (float)180);
+            vend_effector_coord.y = velbow_joint_coord.y - link2 * sinf(vabs_angle * PI_RAD / (float)180);
+        }
 
         // Draw
         BeginDrawing();
@@ -360,13 +352,21 @@ void *render_arm(void *arg)
         DrawLineEx(fixed_point_coord, elbow_joint_coord, 10.0f, YELLOW);
         DrawLineEx(elbow_joint_coord, end_effector_coord, 10.0f, YELLOW);
 
-        DrawLineEx(fixed_point_coord, velbow_joint_coord, 10.0f, GREEN);
-        DrawLineEx(velbow_joint_coord, vend_effector_coord, 10.0f, GREEN);
+        if(vtwin)
+        {
+            DrawLineEx(fixed_point_coord, velbow_joint_coord, 10.0f, GREEN);
+            DrawLineEx(velbow_joint_coord, vend_effector_coord, 10.0f, GREEN);
+        }
 
         // Joints
         DrawCircle(fixed_point_coord.x, fixed_point_coord.y , 10, RED);
-        DrawCircle(velbow_joint_coord.x, velbow_joint_coord.y, 10, BLUE);
-        DrawCircle(vend_effector_coord.x, vend_effector_coord.y, 10, BLUE);
+
+        if(vtwin)
+        {
+            DrawCircle(velbow_joint_coord.x, velbow_joint_coord.y, 10, BLUE);
+            DrawCircle(vend_effector_coord.x, vend_effector_coord.y, 10, BLUE);
+        }
+
         DrawCircle(elbow_joint_coord.x, elbow_joint_coord.y, 10, RED);
         DrawCircle(end_effector_coord.x, end_effector_coord.y, 10, RED);
 
@@ -394,8 +394,13 @@ int main(int argc, char **argv)
         log_on = true;
     }
 
-    link1 = atoi(argv[2]);
-    link2 = atoi(argv[3]);
+    if(argv[2][0] == 'y')
+    {
+        vtwin = true;
+    }
+
+    link1 = atoi(argv[3]);
+    link2 = atoi(argv[4]);
 
     // Handle SIGINT by closing the socket to ensure that stale connections are removed
     struct sigaction new_action, old_action;
