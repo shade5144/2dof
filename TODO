@@ -1,7 +1,7 @@
 Meta:
 
 Bugs:
+- Inverse kinematics: Figure out the horrible accuracy
 
 Features:
-- Display the arm position using Raylib
 - Increase sample rate somehow. As in, the update of the degrees ought to be more in real time

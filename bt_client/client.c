@@ -23,7 +23,9 @@ static bool log_on = false;
 
 static const int NUM_SAMPLES = 96;
 
-static int16_t angle1, angle2;
+// Angle1 -> MG90s and Angle2 -> MG995r
+static int16_t angle1 = 0, angle2 = 0;
+static int16_t ik_angle1 = 0, ik_angle2 = 0;
 static int link1, link2;
 
 // Server socket
@@ -36,6 +38,10 @@ static FILE *servo_log;
 
 // Flag to indicate raylib has initialized, to make sure the interactive client's prompt is properly visible
 static bool raylib_started = false;
+
+// For inverse kinematics
+static bool posn_clicked = false;
+static Vector2 user_end_effector_posn = {0, 0};
 
 // Interrupt handler for SIGINT
 void int_handler(int signum)
@@ -226,7 +232,41 @@ void *interactive_client(void *arg)
             }
             case 2:
             {
-                // TODO
+                if(!posn_clicked)
+                {
+                    printf("Click a position in the graphical client and try again!\n");
+                    break;
+                }
+                
+               // Inverse kinematics calculations go here 
+
+                printf("POSN: %f %f\n", user_end_effector_posn.x, user_end_effector_posn.y);
+
+                float x = user_end_effector_posn.x;
+                float y = user_end_effector_posn.y;
+                float l1 = (float)link1;
+                float l2 = (float)link2;
+
+                printf("x^2 + y^2: %lf\n", x*x + y*y);
+                printf("-link1^2 - link2^2: %lf\n", -l1*l1 - l2*l2);
+                printf("x^2 + y^2 - link1^2 - link2^2: %lf\n", x*x + y*y - l1*l1 - l2*l2);
+                printf("2*link1*link2: %lf\n", 2*l1*l2);
+                printf("(x^2 + y^2 - link1^2 - link2^2) / 2*link1*link2: %lf\n", (x*x + y*y - l1*l1- l2*l2) / (2*l1*l2));
+
+                // Angle1 is q2
+                float q2 = acosf((x*x + y*y - l1*l1 - l2*l2) / (2*l1*l2));
+
+                // Angle2 is q1
+                float q1 = atanf(y/x) - atan((l2 * sinf(q2)) / l1 + l2 * cos(q2));
+
+                q2 = q2 * (float)180 / PI_RAD;
+                q1 = q1 * (float)180 / PI_RAD;
+
+                printf("Angle1: %f Angle2: %f\n", q2, q1);
+
+                ik_angle1 = q2;
+                ik_angle2 = q1;
+
                 break;
             }
             case 3:
@@ -256,9 +296,13 @@ void *render_arm(void *arg)
     Vector2 fixed_point_coord = {screenWidth / 3, screenHeight / 2};
     Vector2 elbow_joint_coord = {screenWidth / 3 + link1, screenHeight / 2};
     Vector2 end_effector_coord = {screenWidth / 3 + link1 + link2, screenHeight / 2};
+    Vector2 velbow_joint_coord = {screenWidth / 3 + link1, screenHeight / 2};
+    Vector2 vend_effector_coord = {screenWidth / 3 + link1 + link2, screenHeight / 2};
 
     // float test_angle1 = 00.0f;
     // float test_angle2 = 00.0f;
+
+    Vector2 mouse_posn = {0, 0};
 
     raylib_started = true;
     while (!WindowShouldClose())  
@@ -270,6 +314,22 @@ void *render_arm(void *arg)
         if (IsKeyDown(KEY_DOWN)) test_angle2 += 1.0f; 
         */
 
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) 
+        {
+            posn_clicked = true;
+            mouse_posn = GetMousePosition();
+
+            user_end_effector_posn.x = mouse_posn.x - fixed_point_coord.x;
+            user_end_effector_posn.y = fixed_point_coord.y - mouse_posn.y; // This is flipped, as negative direction for us is DOWN and positive is UP, but since the coordinate system
+                                                                           // for windows starts from top-left, it is the opposite there
+        }
+
+        if(posn_clicked)
+        {
+            DrawCircle(mouse_posn.x, mouse_posn.y, 5, GREEN);
+        }
+
         // Update
         elbow_joint_coord.x = fixed_point_coord.x + link1 * cosf((float)angle2 * PI_RAD / (float)180);
         elbow_joint_coord.y = fixed_point_coord.y - link1 * sinf((float)angle2 * PI_RAD / (float)180);
@@ -278,6 +338,14 @@ void *render_arm(void *arg)
 
         end_effector_coord.x = elbow_joint_coord.x + link2 * cosf(abs_angle * PI_RAD / (float)180);
         end_effector_coord.y = elbow_joint_coord.y - link2 * sinf(abs_angle * PI_RAD / (float)180);
+
+        velbow_joint_coord.x = fixed_point_coord.x + link1 * cosf((float)ik_angle1 * PI_RAD / (float)180);
+        velbow_joint_coord.y = fixed_point_coord.y - link1 * sinf((float)ik_angle1 * PI_RAD / (float)180);
+
+        float vabs_angle = (float)ik_angle2 + (float)ik_angle1;
+
+        vend_effector_coord.x = velbow_joint_coord.x + link2 * cosf(vabs_angle * PI_RAD / (float)180);
+        vend_effector_coord.y = velbow_joint_coord.y - link2 * sinf(vabs_angle * PI_RAD / (float)180);
 
         // Draw
         BeginDrawing();
@@ -288,8 +356,13 @@ void *render_arm(void *arg)
         DrawLineEx(fixed_point_coord, elbow_joint_coord, 10.0f, YELLOW);
         DrawLineEx(elbow_joint_coord, end_effector_coord, 10.0f, YELLOW);
 
+        DrawLineEx(fixed_point_coord, velbow_joint_coord, 10.0f, GREEN);
+        DrawLineEx(velbow_joint_coord, vend_effector_coord, 10.0f, GREEN);
+
         // Joints
         DrawCircle(fixed_point_coord.x, fixed_point_coord.y , 10, RED);
+        DrawCircle(velbow_joint_coord.x, velbow_joint_coord.y, 10, BLUE);
+        DrawCircle(vend_effector_coord.x, vend_effector_coord.y, 10, BLUE);
         DrawCircle(elbow_joint_coord.x, elbow_joint_coord.y, 10, RED);
         DrawCircle(end_effector_coord.x, end_effector_coord.y, 10, RED);
 
