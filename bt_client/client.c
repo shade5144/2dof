@@ -254,10 +254,13 @@ void *interactive_client(void *arg)
                 printf("(x^2 + y^2 - link1^2 - link2^2) / 2*link1*link2: %lf\n", (x*x + y*y - l1*l1- l2*l2) / (2*l1*l2));
 
                 // Angle1 is q2
-                float q2 = acosf((x*x + y*y - l1*l1 - l2*l2) / (2*l1*l2));
+                float c2 = (x*x + y*y - l1*l1 - l2*l2) / (2*l1*l2);
+                float s2 = sqrtf(1 - c2*c2);
+
+                float q2 = atan2f(s2, c2);
 
                 // Angle2 is q1
-                float q1 = atanf(y/x) - atan((l2 * sinf(q2)) / l1 + l2 * cos(q2));
+                float q1 = atan2f(y, x) - atan2f((l2 * sinf(q2)), l1 + l2 * cos(q2));
 
                 q2 = q2 * (float)180 / PI_RAD;
                 q1 = q1 * (float)180 / PI_RAD;
@@ -327,6 +330,7 @@ void *render_arm(void *arg)
 
         if(posn_clicked)
         {
+            DrawLine(fixed_point_coord.x,fixed_point_coord.y, mouse_posn.x, mouse_posn.y, RED);
             DrawCircle(mouse_posn.x, mouse_posn.y, 5, GREEN);
         }
 
@@ -339,8 +343,8 @@ void *render_arm(void *arg)
         end_effector_coord.x = elbow_joint_coord.x + link2 * cosf(abs_angle * PI_RAD / (float)180);
         end_effector_coord.y = elbow_joint_coord.y - link2 * sinf(abs_angle * PI_RAD / (float)180);
 
-        velbow_joint_coord.x = fixed_point_coord.x + link1 * cosf((float)ik_angle1 * PI_RAD / (float)180);
-        velbow_joint_coord.y = fixed_point_coord.y - link1 * sinf((float)ik_angle1 * PI_RAD / (float)180);
+        velbow_joint_coord.x = fixed_point_coord.x + link1 * cosf((float)ik_angle2 * PI_RAD / (float)180);
+        velbow_joint_coord.y = fixed_point_coord.y - link1 * sinf((float)ik_angle2 * PI_RAD / (float)180);
 
         float vabs_angle = (float)ik_angle2 + (float)ik_angle1;
 
