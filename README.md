@@ -63,6 +63,8 @@ https://github.com/user-attachments/assets/7eef4c33-fd19-4130-acd1-c42e1eefb253
 
 3. Inverse Kinematics, bounds and all:
 
+https://github.com/user-attachments/assets/3fbcfe9e-6a82-414f-9cae-95fa29a36d76
+
 ## Circuit Schematic
 TODO
 
@@ -97,7 +99,11 @@ I ran into a couple of issues in the first release, which I have touched upon he
   bounds. The reason this is a false negative is that a valid "elbow-up" solution can be found, where the angle of both servos are reflected, and therefore the position is in fact
   reachable. The math for this is pretty simple, as shown in the proof below.
 
-  ![Proof](./assets/angle_proof.jpg)
+  ![Proof](./assets/angles
+
+https://github.com/user-attachments/assets/7425ef21-ebcd-42d8-aef6-0f8c3c4733e4
+
+_proof.jpg)
 
 ## References
 - Inverse kinematics equations from robot-academy's article on 2dof arms
