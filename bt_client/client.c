@@ -19,6 +19,7 @@
 
 static bool vtwin = false;
 static bool log_on = false;
+static bool use_ik = false;
 
 #define SERVO_LOG(code) if(log_on) { code; }
 
@@ -26,7 +27,12 @@ static const int NUM_SAMPLES = 96;
 
 // Angle1 -> MG90s and Angle2 -> MG995r
 static int16_t angle1 = 0, angle2 = 0;
+
+// For the virtual twin
 static int16_t ik_angle1 = 0, ik_angle2 = 0;
+
+// For actual arm
+static int16_t ik_angle_move1 = 0, ik_angle_move2 = 0;
 static int link1, link2;
 
 // Server socket
@@ -199,42 +205,6 @@ void *interactive_client(void *arg)
 
                break;
             }
-            case 1:
-            {
-                int temp;
-                int16_t to_send[4];
-                
-                printf("Enter position for Servo1: ");
-                scanf("%d", &temp);
-                to_send[1] = (int16_t)(temp);
-
-                printf("Enter position for Servo2: ");
-                scanf("%d", &temp);
-                to_send[2] = (int16_t)(temp);
-
-                // opcode. specified twice as this is 16-bit data
-                to_send[0] = 0x0101;
-
-                printf("Sending data\n");
-                // printf("Sending data: %d %d\n", to_send[1], to_send[2]);
-
-                servo_moved = 0;
-               
-                if(write(server, to_send, sizeof(int16_t) * 3) == -1)
-                {
-                    perror("interactive_client-write1");
-                    break;
-                }
-
-                printf("Moving servos....\n");
-
-                while(!servo_moved)
-                    usleep(1000);
-                
-                printf("Servos moved!....\n");
-
-                break;
-            }
             case 2:
             {
                 if(!posn_clicked)
@@ -258,10 +228,95 @@ void *interactive_client(void *arg)
                 q2 = q2 * (float)180 / PI_RAD;
                 q1 = q1 * (float)180 / PI_RAD;
 
-                printf("Angle1: %f Angle2: %f\n", q2, q1);
+                // Alternate angles for the negative side of things; See README
+                float q4 = -q2;
+                float q3 = q2 + q1;
 
+                printf("IK Angle1: %f Angle2: %f Angle1-alt: %f Angle2-alt: %f\n", q2, q1, q4, q3);
                 ik_angle1 = q2;
                 ik_angle2 = q1;
+
+                ik_angle_move1 = q2;
+                ik_angle_move2 = q1;
+
+                if(isnan(q1) || isnan(q2))
+                {
+                    printf("Target out of bounds!\n");
+                    break;
+                }
+
+                if(ik_angle2 > 90 || ik_angle2 < -90)
+                {
+                    if(q3 > 90 || q3 < -90)
+                    {
+                        printf("Angle2 out of bounds!\n");
+                        break;
+                    }
+                    
+                    ik_angle_move1 = q4;
+
+                    if(ik_angle_move1 > 90 || ik_angle_move1 < -90)
+                    {
+                        printf("Angle1 out of bounds!\n");
+                        break;
+                    }
+
+                    ik_angle_move2 = q3;
+                }
+
+                if(q2 > 90 || q2 < -90)
+                {
+                    printf("Angle1 out of bounds!\n");
+                    break;
+                }
+
+                // Fall through!!
+                use_ik = true;
+            }
+            case 1:
+            {
+                int temp;
+                int16_t to_send[4];
+               
+                if(!use_ik)
+                {
+                    printf("Enter position for Servo1: ");
+                    scanf("%d", &temp);
+                    to_send[1] = (int16_t)(temp);
+
+                    printf("Enter position for Servo2: ");
+                    scanf("%d", &temp);
+                    to_send[2] = (int16_t)(temp);
+                }
+                else
+                {
+                    printf("Moving servos using IK angles\n");
+                    to_send[1] = (int16_t)(ik_angle_move1);
+                    to_send[2] = (int16_t)(ik_angle_move2);
+                }
+                // opcode. specified twice as this is 16-bit data
+                to_send[0] = 0x0101;
+
+
+                printf("Sending data\n");
+                // printf("Sending data: %d %d\n", to_send[1], to_send[2]);
+
+                servo_moved = 0;
+               
+                if(write(server, to_send, sizeof(int16_t) * 3) == -1)
+                {
+                    perror("interactive_client-write1");
+                    break;
+                }
+
+                printf("Moving servos....\n");
+
+                while(!servo_moved)
+                    usleep(1000);
+                
+                printf("Servos moved!....\n");
+
+                use_ik = false;
 
                 break;
             }
@@ -387,9 +442,9 @@ void *render_arm(void *arg)
 int main(int argc, char **argv)
 {
     // Rudimentary CLI
-    if(argc < 4)
+    if(argc < 5)
     {
-        printf("USAGE: ./clt logging(y/n) l1_length l2_length\n");
+        printf("USAGE: ./clt logging(y/n) show_virtual_arm(y/n) l1_length l2_length\n");
         _exit(0);
     }
 

@@ -61,6 +61,8 @@ https://github.com/user-attachments/assets/f188709f-138d-4c69-847a-8c98933a1f3a
 
 https://github.com/user-attachments/assets/7eef4c33-fd19-4130-acd1-c42e1eefb253
 
+3. Inverse Kinematics, bounds and all:
+
 ## Circuit Schematic
 TODO
 
@@ -70,6 +72,8 @@ I ran into a couple of issues in the first release, which I have touched upon he
 - Measuring the servo's position via a wire to the internal potentiometer appeared to be fine in isolation, but when I had to apply voltage to also MOVE the servos while it was being
   measured, this caused the servos to start malfunctioning. Likely this is because the ESP32's ADC does not tolerate the impedance of the internal pot, leading to current draw. My 
   solution to this was to add a simple op-amp buffer, which fixed it. Ideally though, I am aware, I ought to use a specialized ADC.
+- Another electronics problem was a brownout being triggered by the usage of the BT stack in the ESP32. This was simply because of current spikes due to the stack, and was fixed by
+  adding 3 470uF capacitors in parallel(with equivalent capacitance 3\*470 = 1410uF) to the GND and 3.3V pins, which regulated the spikes.
 - The wathcdog timer for CPU0, which runs the bluetooth stack, kept getting tripped. I initially thought it was because of some other task than BT running in CPU0, but pinning my 2 
   tasks to CPU1 didn't seem to work. Then, I tried lowering the priorities of my tasks, `BtAdcSendTask` and `ServoMoveTask`, which seemed to fix the issue.
 - The `adc_oneshot_read` also started tripping the watchdog timer(and to some extent this issue is still there) so I just added a delay of 10 ms that runs for every 16 reads
@@ -87,6 +91,13 @@ I ran into a couple of issues in the first release, which I have touched upon he
 ### Second Release
 - Not much to say here, as the graphics stuff is pretty straight forward. Just had to mess around with the trigonometry in the client to get a one-one correspondence with the physical 
   arm.
+### Third Release
+- The only issue I encountered while implementing IK is the different in behaviour between the positive and negative quadrants. Now, the algorithm used makes it so that the arm travels
+  around in the anti-clockwise direction to reach the end-point, leading to some false-negatives where the angle of the large servo is `< -90`, and angle of the small servo is within
+  bounds. The reason this is a false negative is that a valid "elbow-up" solution can be found, where the angle of both servos are reflected, and therefore the position is in fact
+  reachable. The math for this is pretty simple, as shown in the proof below.
+
+  ![Proof](./assets/angle_proof.jpg)
 
 ## References
 - Inverse kinematics equations from robot-academy's article on 2dof arms

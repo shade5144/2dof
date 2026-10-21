@@ -1,7 +1,7 @@
 Meta:
 
 Bugs:
-- Inverse kinematics: Figure out the horrible accuracy
+- Inverse Kinematics: Figure out how to "reflect" the arm's position if the angles are out of bounds
 
 Features:
 - Increase sample rate somehow. As in, the update of the degrees ought to be more in real time
