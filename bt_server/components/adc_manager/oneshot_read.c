@@ -27,7 +27,6 @@ const static char *TAG = "ADC_READ";
 
 int init_servo1 = -1, init_servo2 = -1;
 static bool adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle);
-static void adc_calibration_deinit(adc_cali_handle_t handle);
 
 static bool do_calibration[3];
 
@@ -84,20 +83,6 @@ void adc_init(adc_oneshot_unit_handle_t *adc_handle,
     ESP_LOGI(TAG, "INIT servo1: %d servo2: %d", init_servo1, init_servo2);
 }
 
-void adc_deinit(adc_oneshot_unit_handle_t adc_handle,
-                adc_cali_handle_t cali_chan0,
-                adc_cali_handle_t cali_chan1)
-{
-    //Tear Down
-    ESP_ERROR_CHECK(adc_oneshot_del_unit(adc_handle));
-    if (do_calibration[0]) {
-        adc_calibration_deinit(cali_chan0);
-    }
-    if (do_calibration[2]) {
-        adc_calibration_deinit(cali_chan1);
-    }
-}
-
 /*---------------------------------------------------------------
         ADC Calibration
 ---------------------------------------------------------------*/
@@ -150,14 +135,3 @@ static bool adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_att
     return calibrated;
 }
 
-static void adc_calibration_deinit(adc_cali_handle_t handle)
-{
-#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-    ESP_LOGI(TAG, "deregister %s calibration scheme", "Curve Fitting");
-    ESP_ERROR_CHECK(adc_cali_delete_scheme_curve_fitting(handle));
-
-#elif ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-    ESP_LOGI(TAG, "deregister %s calibration scheme", "Line Fitting");
-    ESP_ERROR_CHECK(adc_cali_delete_scheme_line_fitting(handle));
-#endif
-}

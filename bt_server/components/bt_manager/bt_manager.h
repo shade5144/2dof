@@ -14,7 +14,6 @@ char *bda2str(uint8_t * bda, char *str, size_t size);
 bool init_bluetooth(char *bda_str);
 
 bool bt_send_data(uint8_t *data, int length);
-bool bt_recv_ack();
 bool client_connected();
 
 #endif

@@ -1,7 +1,0 @@
-Meta:
-
-Bugs:
-- Probably need some interpolation to deal with jumps from one angle to another
-
-Features:
-- Increase sample rate somehow. As in, the update of the degrees ought to be more in real time

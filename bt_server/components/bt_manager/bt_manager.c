@@ -98,28 +98,6 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                  param->srv_open.handle, bda2str(param->srv_open.rem_bda, bda_str, sizeof(bda_str)));
         break;
 
-    /* The following aren't used for the moment */
-    case ESP_SPP_CL_INIT_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
-        break;
-    case ESP_SPP_CONG_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT");
-        break;
-    case ESP_SPP_WRITE_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
-        break;
-    case ESP_SPP_SRV_STOP_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_STOP_EVT");
-        break;
-    case ESP_SPP_UNINIT_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_UNINIT_EVT");
-        break;
-    case ESP_SPP_DISCOVERY_COMP_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT");
-        break;
-    case ESP_SPP_OPEN_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT");
-        break;
     case ESP_SPP_CLOSE_EVT:
         write_handle = 0;
         ESP_LOGI(SPP_TAG, "ESP_SPP_CLOSE_EVT status:%d handle:%"PRIu32" close_by_remote:%d", param->close.status,
@@ -253,15 +231,6 @@ bool bt_send_data(uint8_t *data, int length)
             return false;
     }
 
-    return true;
-}
-
-bool bt_recv_ack()
-{
-    while(!rx_buffer)
-        vTaskDelay(10);
-
-    rx_buffer = '\0';
     return true;
 }
 

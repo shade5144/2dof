@@ -107,13 +107,6 @@ void *stream_servo_position(void *arg)
 
         samp_top = 0;
 
-        /*
-        for(int i = 0; i < 480 ; i++)
-        {
-            printf("%u\n", servo_readings[i]);
-        }
-        */
-
         int batch_size = NUM_SAMPLES / 24;
         uint16_t *servo_readings_batch;
 
@@ -150,61 +143,6 @@ void *stream_servo_position(void *arg)
         angle1 = avg1 / (NUM_SAMPLES/2);
         angle2 = avg2 / (NUM_SAMPLES/2);
 
-        /*
-                uint16_t avg = 0;
-
-                for(int j = 0; j < batch_size; j++)
-                {
-                    int16_t reading = servo_readings_batch[i * batch_size + j];
-
-                    // Interrupt
-                    if(!reading)
-                    {
-                        servo_moved = 1;
-                        continue;
-                    }
-
-                    avg += reading;
-                }
-
-                if(avg == 0)
-                {
-                    servo_moved = 1;
-                    // fprintf(servo_log, "INTERRUPT RAISED!!!\n");
-                }
-
-                samples[samp_top++] = avg / batch_size;
-            }
-
-            int16_t avg1 = 0;
-            int16_t avg2 = 0;
-
-            for(int i = 0; i < 12; i++)
-            {
-                int16_t a1 =  convert_voltage_to_angle_servo1(samples[i]);
-                int16_t a2 =  convert_voltage_to_angle_servo2(samples[i + 12]);
-
-                avg1 += a1;
-                avg2 += a2;
-
-                SERVO_LOG(
-                        fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle_servo1(samples[i]),  
-                                                                                    samples[i + 12], convert_voltage_to_angle_servo2(samples[i + 12]))
-                );
-            } 
-
-            avg1 /= 12;
-            avg2 /= 12;
-
-            angle1 = avg1;
-            angle2 = avg2;
-
-            SERVO_LOG(fprintf(servo_log, "Current average -> (%d %d)\n", angle1, angle2));
-
-        num++;
-
-        last_time = current_time;
-        */
         fflush(servo_log);
     }
 
@@ -384,20 +322,11 @@ void *render_arm(void *arg)
     Vector2 velbow_joint_coord = {screenWidth / 3 + link1, screenHeight / 2};
     Vector2 vend_effector_coord = {screenWidth / 3 + link1 + link2, screenHeight / 2};
 
-    // float test_angle1 = 00.0f;
-    // float test_angle2 = 00.0f;
-
     Vector2 mouse_posn = {0, 0};
 
     raylib_started = true;
     while (!WindowShouldClose())  
     {
-        /*
-        if (IsKeyDown(KEY_RIGHT)) test_angle1 += 1.0f;
-        if (IsKeyDown(KEY_LEFT)) test_angle1 -= 1.0f;
-        if (IsKeyDown(KEY_UP)) test_angle2 -= 1.0f;
-        if (IsKeyDown(KEY_DOWN)) test_angle2 += 1.0f; 
-        */
 
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) 
@@ -424,10 +353,6 @@ void *render_arm(void *arg)
 
         end_effector_coord.x = elbow_joint_coord.x + link2 * cosf(abs_angle * PI_RAD / (float)180);
         end_effector_coord.y = elbow_joint_coord.y - link2 * sinf(abs_angle * PI_RAD / (float)180);
-
-        // SERVO_LOG(
-          //      fprintf(servo_log, "RAYLIB: Servo1: %d Servo2: %d\n", angle1, angle2);
-           // );
 
         if(vtwin)
         {

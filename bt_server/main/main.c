@@ -92,8 +92,6 @@ static void transmit_task(void *params)
                 ESP_LOGI(SPP_TAG, "Preparing to move the servos....");
                 xTaskCreate(move_servo_task, "MoveServoTask", 4 * 1024, NULL, configMAX_PRIORITIES - 14, NULL);
 
-                // Wait 
-                // vTaskDelay(pdMS_TO_TICKS(100));
             }
 
             for(int i = 0; i < NUM_SAMPLES / 2; i++)
@@ -117,9 +115,6 @@ static void transmit_task(void *params)
         }
 
     }
-
-    /* Virtually useless, but maybe in the future */
-    // adc_deinit(adc_handle, cali_chan0, cali_chan1);
 }
 
 void app_main(void)
