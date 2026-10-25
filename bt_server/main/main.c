@@ -54,8 +54,10 @@ static void move_servo_task(void *params)
 
     ESP_LOGI(SPP_TAG, "Moving servo 1..");
     smooth_move_motor(0, btman_servo_1_angle_write);  
+    vTaskDelay(1);
     ESP_LOGI(SPP_TAG, "Moving servo 2..");
     smooth_move_motor(1, btman_servo_2_angle_write);
+    vTaskDelay(1);
 
     block_transmission = true;
 

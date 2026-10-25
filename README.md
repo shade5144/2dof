@@ -101,6 +101,13 @@ I ran into a couple of issues in the first release, which I have touched upon he
 
   ![Proof](./assets/angles_proof.jpg)
 
+### The rest
+- This section is more for miscellaneous stuff, which I intend to use in the future but am prototyping here.
+- About servo movement:
+    1. Instead of incrementing by *degrees* in `smooth_move_motor`, I increment by ms for the pulse width directly, which seems to allow smoother movement.
+    2. I added detection of servo position BEFORE it is set to the initial position, which allows `smooth_move_motor` to be called from the start.
+    3. Speed control for the servos was also done, though I probably wont expose an interface for this in the client for now.
+
 ## References
 - Inverse kinematics equations from robot-academy's article on 2dof arms
 - The esp-idf documentation and the various examples included in the development framework were of immense help.

@@ -43,8 +43,8 @@ static struct ServoDrive servos[SERVO_COUNT] =
 
 static struct ServoPos servo_position[SERVO_COUNT] = 
 {
-    {0, 2}, 
-    {0, 2}
+    {0, 1}, 
+    {0, 1}
 };
 
 // Please consult the datasheet of your servo before changing the following parameters
@@ -96,6 +96,16 @@ void smooth_move_motor(int servo_num, int to_move)
     angle = example_angle_to_compare(angle, servo); 
     ESP_LOGI(TAG, "AFTER: %d", angle);
 
+    int counter = 1;
+    int delay_amt = 1000;
+    int counter_limit = 0xffffffff; // Infinity pretty much
+
+    if(delay_amt >= 2000)
+    {
+        // This is a little jank as I have only tested for 2000, 4000, 8000 and 16000 while this formula generalizes too much
+        counter_limit = (0x800 >> (delay_amt / 2000 - 1)) - 1;
+    }
+
     if(to_move < angle)
     {
         step *= -1;
@@ -103,10 +113,12 @@ void smooth_move_motor(int servo_num, int to_move)
         while((angle + step) > to_move)
         {
             angle += step;
-            ESP_LOGI(TAG, "FOOBAR1");
             ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angle));
-            // esp_rom_delay_us(1000);
-            vTaskDelay(1);
+            esp_rom_delay_us(delay_amt);
+
+            counter = (counter + 1) & 0x7ff;
+            if(!counter)
+              vTaskDelay(1);
         }
     }
     else
@@ -114,10 +126,12 @@ void smooth_move_motor(int servo_num, int to_move)
         while((angle + step) < to_move)
         {
             angle += step;
-            ESP_LOGI(TAG, "FOOBAR2");
             ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angle));
-            vTaskDelay(1);
-            // esp_rom_delay_us(2000);
+            esp_rom_delay_us(delay_amt);
+
+            counter = (counter + 1) & 0x7ff;
+            if(!counter)
+              vTaskDelay(1);
         }
     }
 
@@ -199,6 +213,8 @@ void mcpwm_init()
 
     float initial = -5;
     smooth_move_motor(0, initial);
+    vTaskDelay(1);
     smooth_move_motor(1, initial);
+    vTaskDelay(1);
 }
 
