@@ -28,6 +28,9 @@
 #define SPP_TAG "SPP_ACCEPTOR_MAIN"
 #define SPP_SERVER_NAME "SPP_SERVER_MAIN"
 
+static adc_oneshot_unit_handle_t adc_handle;
+static adc_cali_handle_t cali_chan0, cali_chan1;
+
 #define ADC_PIN1 ADC_CHANNEL_4
 #define ADC_PIN2 ADC_CHANNEL_6
 
@@ -61,9 +64,6 @@ static void move_servo_task(void *params)
 
 static void transmit_task(void *params)
 {
-    adc_oneshot_unit_handle_t adc_handle;
-    adc_cali_handle_t cali_chan0, cali_chan1;
-    adc_init(&adc_handle, &cali_chan0, &cali_chan1);
 
     while(1)
     {
@@ -127,6 +127,8 @@ void app_main(void)
 
     ESP_LOGI(SPP_TAG, "Own address:[%s]", bda2str((uint8_t *)esp_bt_dev_get_address(), bda_str, sizeof(bda_str)));
 
+    // Init adc before mcpwm to init angles properly
+    adc_init(&adc_handle, &cali_chan0, &cali_chan1);
     mcpwm_init();
 
     xTaskCreate(transmit_task, "BtSendAdcTask", 4 * 1024, NULL, configMAX_PRIORITIES - 10, NULL);

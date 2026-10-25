@@ -10,9 +10,13 @@
 #include "esp_log.h"
 #include "driver/mcpwm_prelude.h"
 
+#include "esp_rom_sys.h"
+
 #include "mcpwm_manager.h"
 
 static const char *TAG = "example";
+
+extern int init_servo1, init_servo2;
 
 // -5 has proper straight alignment, not 0. So the bounds must be adjusted accordingly
 static struct ServoDrive servos[SERVO_COUNT] =
@@ -24,7 +28,6 @@ static struct ServoDrive servos[SERVO_COUNT] =
         .max_pw = 2550,
         .min_degree = -90,
         .max_degree = 90,
-        .initial_degree = -5,
         .gen_cfg = { .gen_gpio_num = SERVO_GPIO_1},
     },
     {
@@ -34,21 +37,30 @@ static struct ServoDrive servos[SERVO_COUNT] =
         .max_pw = 2400,
         .min_degree = -90,
         .max_degree = 90,
-        .initial_degree = -5,
         .gen_cfg = { .gen_gpio_num = SERVO_GPIO_2},
     },
 };
 
 static struct ServoPos servo_position[SERVO_COUNT] = 
 {
-    {0, 1}, 
-    {0, 1}
+    {0, 2}, 
+    {0, 2}
 };
 
 // Please consult the datasheet of your servo before changing the following parameters
 
 #define SERVO_TIMEBASE_RESOLUTION_HZ 1000000  // 1MHz, 1us per tick
 #define SERVO_TIMEBASE_PERIOD        20000    // 20000 ticks, 20ms
+
+static int convert_voltage_to_angle_servo1(int x)
+{
+    return ((x - 384) * (90 - (-90)) / (3094-384)) + (-90);
+}
+
+static int convert_voltage_to_angle_servo2(int x)
+{
+    return ((x - 292) * (90 - (-90)) / (2924-292)) + (-90);
+}
 
 static inline uint32_t example_angle_to_compare(int angle, struct ServoDrive *servo)
 {
@@ -64,9 +76,54 @@ void smooth_move_motor(int servo_num, int to_move)
     struct ServoPos *servo_pos = &servo_position[servo_num];
     mcpwm_cmpr_handle_t comparator = servo->cmp_handle;
 
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(to_move, servo)));
+    int delay = 4;
 
-    return;
+    /*
+    if(!servo_num)
+    {
+        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(to_move, servo)));
+        return;
+    }
+    */
+
+    int step = servo_pos->step;
+    int angle = servo_pos->angle;
+
+    int to_move_cpy = to_move;
+
+    to_move = example_angle_to_compare(to_move, servo); 
+    ESP_LOGI(TAG, "BEFORE: %d", angle);
+    angle = example_angle_to_compare(angle, servo); 
+    ESP_LOGI(TAG, "AFTER: %d", angle);
+
+    if(to_move < angle)
+    {
+        step *= -1;
+
+        while((angle + step) > to_move)
+        {
+            angle += step;
+            ESP_LOGI(TAG, "FOOBAR1");
+            ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angle));
+            // esp_rom_delay_us(1000);
+            vTaskDelay(1);
+        }
+    }
+    else
+    {
+        while((angle + step) < to_move)
+        {
+            angle += step;
+            ESP_LOGI(TAG, "FOOBAR2");
+            ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angle));
+            vTaskDelay(1);
+            // esp_rom_delay_us(2000);
+        }
+    }
+
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, to_move));
+
+    servo_pos->angle = to_move_cpy;
 }
 
 void mcpwm_init()
@@ -83,11 +140,11 @@ void mcpwm_init()
     };
     ESP_ERROR_CHECK(mcpwm_new_timer(&timer_config, &timer));
 
+    ESP_LOGI(TAG, "Servo Voltages: %d %d", init_servo1, init_servo2);
     for(int i = 0; i < SERVO_COUNT; i++)
     {
         ESP_LOGI(TAG, "One time init?");
 
-        float initial = servos[i].initial_degree;
         mcpwm_generator_config_t *generator_config = &servos[i].gen_cfg;
 
         mcpwm_oper_handle_t oper = NULL;
@@ -110,8 +167,19 @@ void mcpwm_init()
         mcpwm_gen_handle_t generator = NULL;
         ESP_ERROR_CHECK(mcpwm_new_generator(oper, generator_config, &generator));
 
+        if(!i)
+        {
+            servo_position[i].angle = convert_voltage_to_angle_servo1(init_servo1);
+        }
+        else
+        {
+            servo_position[i].angle = convert_voltage_to_angle_servo2(init_servo2);
+        }
+
+        ESP_LOGI(TAG, "ANGLE: Servo%d: %d", i+1, servo_position[i].angle);
+
         // set the initial compare value, so that the servo will spin to the center position
-        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(initial, &servos[i])));
+        // ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(initial, &servos[i])));
 
         ESP_LOGI(TAG, "Set generator action on timer and compare event");
         // go high on counter empty
@@ -128,5 +196,9 @@ void mcpwm_init()
     ESP_LOGI(TAG, "Enable and start timer");
     ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
+
+    float initial = -5;
+    smooth_move_motor(0, initial);
+    smooth_move_motor(1, initial);
 }
 

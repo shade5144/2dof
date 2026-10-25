@@ -25,10 +25,28 @@ const static char *TAG = "ADC_READ";
 
 #define EXAMPLE_ADC_ATTEN           ADC_ATTEN_DB_12
 
+int init_servo1 = -1, init_servo2 = -1;
 static bool adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle);
 static void adc_calibration_deinit(adc_cali_handle_t handle);
 
 static bool do_calibration[3];
+
+int oneshot_read_voltage(adc_oneshot_unit_handle_t handle, adc_channel_t chan, adc_cali_handle_t cali)
+{
+    int raw, voltage;
+
+    ESP_ERROR_CHECK(adc_oneshot_read(handle, chan, &raw));
+
+    /* Channels 4 and 6, so 2 indices apart */
+    if(do_calibration[chan - EXAMPLE_ADC1_CHAN0])
+    {
+        adc_cali_raw_to_voltage(cali, raw, &voltage);
+        return voltage;
+    }
+   
+    /* Values are between 142 to 3145 so should be fine */
+    return -1;
+}
 
 void adc_init(adc_oneshot_unit_handle_t *adc_handle, 
               adc_cali_handle_t *cali_chan0,
@@ -59,6 +77,11 @@ void adc_init(adc_oneshot_unit_handle_t *adc_handle,
     *adc_handle = adc1_handle;
     *cali_chan0 = adc1_cali_chan0_handle;
     *cali_chan1 = adc1_cali_chan1_handle;
+
+    init_servo1 = oneshot_read_voltage(adc1_handle, EXAMPLE_ADC1_CHAN0, adc1_cali_chan0_handle);
+    init_servo2 = oneshot_read_voltage(adc1_handle, EXAMPLE_ADC1_CHAN1, adc1_cali_chan1_handle);
+
+    ESP_LOGI(TAG, "INIT servo1: %d servo2: %d", init_servo1, init_servo2);
 }
 
 void adc_deinit(adc_oneshot_unit_handle_t adc_handle,
@@ -73,23 +96,6 @@ void adc_deinit(adc_oneshot_unit_handle_t adc_handle,
     if (do_calibration[2]) {
         adc_calibration_deinit(cali_chan1);
     }
-}
-
-int oneshot_read_voltage(adc_oneshot_unit_handle_t handle, adc_channel_t chan, adc_cali_handle_t cali)
-{
-    int raw, voltage;
-
-    ESP_ERROR_CHECK(adc_oneshot_read(handle, chan, &raw));
-
-    /* Channels 4 and 6, so 2 indices apart */
-    if(do_calibration[chan - EXAMPLE_ADC1_CHAN0])
-    {
-        adc_cali_raw_to_voltage(cali, raw, &voltage);
-        return voltage;
-    }
-   
-    /* Values are between 142 to 3145 so should be fine */
-    return -1;
 }
 
 /*---------------------------------------------------------------
