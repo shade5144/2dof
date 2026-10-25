@@ -23,10 +23,10 @@ static bool use_ik = false;
 
 #define SERVO_LOG(code) if(log_on) { code; }
 
-static const int NUM_SAMPLES = 96;
+static const int NUM_SAMPLES = 24;
 
 // Angle1 -> MG90s and Angle2 -> MG995r
-static int16_t angle1 = 0, angle2 = 0;
+int16_t angle1 = 0, angle2 = 0;
 
 // For the virtual twin
 static int16_t ik_angle1 = 0, ik_angle2 = 0;
@@ -84,7 +84,7 @@ void *stream_servo_position(void *arg)
 {
     struct timespec last_time, current_time;
     int num = 0;
-    uint16_t servo_readings[512];
+    uint16_t servo_readings[1024];
     uint16_t samples[32];
     int samp_top = 0;
 
@@ -115,62 +115,96 @@ void *stream_servo_position(void *arg)
         */
 
         int batch_size = NUM_SAMPLES / 24;
+        uint16_t *servo_readings_batch;
 
-        for(int i = 0; i < 24; i++)
+        int avg1 = 0;
+        int avg2 = 0;
+        float alpha = 0.4;
+
+        for(int i = 0; i < NUM_SAMPLES / 2; i++)
         {
-            uint16_t avg = 0;
+            int16_t reading1 = servo_readings[i];
+            int16_t reading2 = servo_readings[i + (NUM_SAMPLES / 2)];
 
-            for(int j = 0; j < batch_size; j++)
-            {
-                int16_t reading = servo_readings[i * batch_size + j];
-
-                // Interrupt
-                if(!reading)
-                {
-                    servo_moved = 1;
-                    continue;
-                }
-
-                avg += reading;
-            }
-
-            if(avg == 0)
+            if(!reading1)
             {
                 servo_moved = 1;
-                // fprintf(servo_log, "INTERRUPT RAISED!!!\n");
+                continue;
             }
 
-            samples[samp_top++] = avg / batch_size;
-        }
-
-        int16_t avg1 = 0;
-        int16_t avg2 = 0;
-
-        for(int i = 0; i < 12; i++)
-        {
-            int16_t a1 =  convert_voltage_to_angle_servo1(samples[i]);
-            int16_t a2 =  convert_voltage_to_angle_servo2(samples[i + 12]);
+            int a1 = convert_voltage_to_angle_servo1(reading1);
+            int a2 = convert_voltage_to_angle_servo2(reading2);
 
             avg1 += a1;
             avg2 += a2;
+            // angle1 = alpha * a1 + (1 - alpha) * angle1;
+            // angle2 = alpha * a2 + (1 - alpha) * angle2;
 
             SERVO_LOG(
-                    fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle_servo1(samples[i]),  
-                                                                                samples[i + 12], convert_voltage_to_angle_servo2(samples[i + 12]))
-            );
-        } 
+                    fprintf(servo_log, "STREAM: Servo1: (%u , %d) Servo2: (%u , %d)\n", reading1, a1,  
+                                                                                reading2, a2)
+                );
 
-        avg1 /= 12;
-        avg2 /= 12;
+        }
 
-        SERVO_LOG(fprintf(servo_log, "Current average -> (%d %d)\n", angle1, angle2));
+        angle1 = avg1 / (NUM_SAMPLES/2);
+        angle2 = avg2 / (NUM_SAMPLES/2);
 
-        angle1 = avg1;
-        angle2 = avg2;
+        /*
+                uint16_t avg = 0;
+
+                for(int j = 0; j < batch_size; j++)
+                {
+                    int16_t reading = servo_readings_batch[i * batch_size + j];
+
+                    // Interrupt
+                    if(!reading)
+                    {
+                        servo_moved = 1;
+                        continue;
+                    }
+
+                    avg += reading;
+                }
+
+                if(avg == 0)
+                {
+                    servo_moved = 1;
+                    // fprintf(servo_log, "INTERRUPT RAISED!!!\n");
+                }
+
+                samples[samp_top++] = avg / batch_size;
+            }
+
+            int16_t avg1 = 0;
+            int16_t avg2 = 0;
+
+            for(int i = 0; i < 12; i++)
+            {
+                int16_t a1 =  convert_voltage_to_angle_servo1(samples[i]);
+                int16_t a2 =  convert_voltage_to_angle_servo2(samples[i + 12]);
+
+                avg1 += a1;
+                avg2 += a2;
+
+                SERVO_LOG(
+                        fprintf(servo_log, "Servo1: (%u , %d) Servo2: (%u , %d)\n", samples[i], convert_voltage_to_angle_servo1(samples[i]),  
+                                                                                    samples[i + 12], convert_voltage_to_angle_servo2(samples[i + 12]))
+                );
+            } 
+
+            avg1 /= 12;
+            avg2 /= 12;
+
+            angle1 = avg1;
+            angle2 = avg2;
+
+            SERVO_LOG(fprintf(servo_log, "Current average -> (%d %d)\n", angle1, angle2));
 
         num++;
 
         last_time = current_time;
+        */
         fflush(servo_log);
     }
 
@@ -342,7 +376,7 @@ void *render_arm(void *arg)
 
     InitWindow(screenWidth, screenHeight, "2dof Client");
 
-    SetTargetFPS(60);             
+    // SetTargetFPS(60);             
 
     Vector2 fixed_point_coord = {screenWidth / 3, screenHeight / 2};
     Vector2 elbow_joint_coord = {screenWidth / 3 + link1, screenHeight / 2};
@@ -390,6 +424,10 @@ void *render_arm(void *arg)
 
         end_effector_coord.x = elbow_joint_coord.x + link2 * cosf(abs_angle * PI_RAD / (float)180);
         end_effector_coord.y = elbow_joint_coord.y - link2 * sinf(abs_angle * PI_RAD / (float)180);
+
+        // SERVO_LOG(
+          //      fprintf(servo_log, "RAYLIB: Servo1: %d Servo2: %d\n", angle1, angle2);
+           // );
 
         if(vtwin)
         {

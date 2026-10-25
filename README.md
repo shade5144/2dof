@@ -65,9 +65,6 @@ https://github.com/user-attachments/assets/7eef4c33-fd19-4130-acd1-c42e1eefb253
 
 https://github.com/user-attachments/assets/3fbcfe9e-6a82-414f-9cae-95fa29a36d76
 
-## Circuit Schematic
-TODO
-
 ## Development Notes
 ### First Release
 I ran into a couple of issues in the first release, which I have touched upon here.
@@ -107,7 +104,17 @@ I ran into a couple of issues in the first release, which I have touched upon he
     1. Instead of incrementing by *degrees* in `smooth_move_motor`, I increment by ms for the pulse width directly, which seems to allow smoother movement.
     2. I added detection of servo position BEFORE it is set to the initial position, which allows `smooth_move_motor` to be called from the start.
     3. Speed control for the servos was also done, though I probably wont expose an interface for this in the client for now.
+- About the more responsive digital twin: Weirdly enough, the thread used to receive and process the samples sent over BT by the ESP32 sort of blocks until it goes through the entire
+  (previously) 96 samples, causing a decent delay between reception of samples and rendering on screen. Therefore, I simply reduced the number of samples to 24. It seems to me that
+  responsiveness is more important than the arm itself not jittering around, for the moment, and that if I want a LESS noisy arrangement, that's more of a hardware thing to do, 
+  as working-around in software compromises accuracy anyways. For example, I could use an aggressive exponential average on the samples received, which would more or less stop the
+  jittering of the arm, but it also leads to less accuracy. So now we have the accuracy, but there is also noise from the servo's pot causing the jittering.
 
+## Circuit Schematic
+![Overall Setup](./assets/schem.png)
+
+- Note that I have removed the 0.1uF+470uF capactior arrangement seen in the setup, and though not pictured here, added a 2x470uF arrangement across the power rails for the servos,
+  which significantly improved movement smoothness and stopped the smaller servo from randomly jittering.
 ## References
 - Inverse kinematics equations from robot-academy's article on 2dof arms
 - The esp-idf documentation and the various examples included in the development framework were of immense help.
