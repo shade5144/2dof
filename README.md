@@ -62,6 +62,10 @@ https://github.com/user-attachments/assets/7eef4c33-fd19-4130-acd1-c42e1eefb253
 
 https://github.com/user-attachments/assets/3fbcfe9e-6a82-414f-9cae-95fa29a36d76
 
+4. Smooth movement of motors:
+
+https://github.com/user-attachments/assets/149940a5-16cf-404c-92e4-e15c4e860c9e
+
 ## Development Notes
 ### First Release
 I ran into a couple of issues in the first release, which I have touched upon here.
