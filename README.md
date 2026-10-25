@@ -10,7 +10,6 @@ turned out to be a bit of a hassle, so I decided against it.
 
 ## Scope
 The only things I wanted to get done here were:
-
     1. **Bluetooth** connectivity between my Laptop and the ESP32.
     2. Real time **tracking of the arm's position** using a wire soldered to the internal potentiometers of the servos.
     3. Using the data from point 2, create a basic **Digital Twin** of the arm.
