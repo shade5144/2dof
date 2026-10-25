@@ -15,8 +15,7 @@ The only things I wanted to get done here were:
     2. Real time **tracking of the arm's position** using a wire soldered to the internal potentiometers of the servos.
     3. Using the data from point 2, create a basic **Digital Twin** of the arm.
     3. **Moving the servos** using remote commands via BT
-    4. **Inverse Kinematics** for the arm. Not done in this release, but will be included in the next one.
-    5. (**Maybe**) Getting the arm to follow a certain **trajectory**. This I still need to look into.
+    4. **Inverse Kinematics** via BT
 
 ## Software Requirement
 - This has been tested only on Linux, so not sure about how it should be built and flashed in Windows
@@ -38,9 +37,7 @@ idf.py -p [YOUR_ESP_PORT] flash monitor
 ## Progress
 - You can connect to the ESP32 via a Linux system and send commands to set servo angles
 - You can view the arm's position on the client in real-time
-- You can now calculate servo angles given end-effector position. 
-
-- Have to implement bounds checking for IK
+- You can now move the arm to a specified end-effector position
 
 ## Setup
 The electronics shall be explained later, in more detail. This is what the setup LOOKS like though
