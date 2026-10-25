@@ -34,10 +34,10 @@ static adc_cali_handle_t cali_chan0, cali_chan1;
 #define ADC_PIN1 ADC_CHANNEL_4
 #define ADC_PIN2 ADC_CHANNEL_6
 
-static const int NUM_SAMPLES = 96;
+static const int NUM_SAMPLES = 24;
 
 static bool block_transmission = false;
-static uint16_t data[120];
+static uint16_t data[512];
 
 // Extern variables for servo actuation via BT 
 extern int btman_servo_1_angle_write;
@@ -48,14 +48,24 @@ int move_servo = 0;
 // Make a global counter of samples. Any sample marked zero triggers an interrupt in the client, indicating servo movement has completed
 static int sample_counter = 0;
 
+static int convert_voltage_to_angle_servo1(int x)
+{
+    return ((x - 384) * (90 - (-90)) / (3094-384)) + (-90);
+}
+
+static int convert_voltage_to_angle_servo2(int x)
+{
+    return ((x - 292) * (90 - (-90)) / (2924-292)) + (-90);
+}
+
 static void move_servo_task(void *params)
 {
     move_servo = 0;
 
-    ESP_LOGI(SPP_TAG, "Moving servo 1..");
+    ESP_LOGI(SPP_TAG, "Moving servo 1 to %d..", btman_servo_1_angle_write);
     smooth_move_motor(0, btman_servo_1_angle_write);  
     vTaskDelay(1);
-    ESP_LOGI(SPP_TAG, "Moving servo 2..");
+    ESP_LOGI(SPP_TAG, "Moving servo 2.. %d", btman_servo_2_angle_write);
     smooth_move_motor(1, btman_servo_2_angle_write);
     vTaskDelay(1);
 

@@ -77,6 +77,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                     int16_t *angle_ptr = (int16_t *)param->data_ind.data;
                     btman_servo_1_angle_write = angle_ptr[1];
                     btman_servo_2_angle_write = angle_ptr[2];
+                    ESP_LOGI(SPP_TAG, "Move to: %d %d", angle_ptr[1], angle_ptr[2]);
                     move_servo = true;
 
                     break;

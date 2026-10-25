@@ -108,6 +108,7 @@ void smooth_move_motor(int servo_num, int to_move)
 
     if(to_move < angle)
     {
+        ESP_LOGI(TAG, "Angle lesser for %d", servo_num);
         step *= -1;
 
         while((angle + step) > to_move)
@@ -123,6 +124,7 @@ void smooth_move_motor(int servo_num, int to_move)
     }
     else
     {
+        ESP_LOGI(TAG, "Angle greater for %d", servo_num);
         while((angle + step) < to_move)
         {
             angle += step;
